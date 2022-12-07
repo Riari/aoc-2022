@@ -1,4 +1,7 @@
 .gradle
 .idea
-build
+bin/
+build/
 src/**/*.txt
+input/**/*.txt
+!input/**/*_test.txt
