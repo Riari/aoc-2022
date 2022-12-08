@@ -20,21 +20,21 @@ if not os.path.exists(inputPath):
 
 f = open(os.path.join(srcPath, srcFile), 'w')
 f.write('''fun main() {{
-   fun part1(input: List<String>): Int {{
-       return 0
-   }}
+    fun part1(input: List<String>): Int {{
+        return 0
+    }}
 
-   fun part2(input: List<String>): Int {{
-       return 0
-   }}
+    fun part2(input: List<String>): Int {{
+        return 0
+    }}
 
-   val testInput = readInput("Day{n}_test")
-   check(part1(testInput) == 0)
-   check(part2(testInput) == 0)
+    val testInput = readInput("Day{n}_test")
+    check(part1(testInput) == 0)
+    check(part2(testInput) == 0)
 
-   val input = readInput("Day{n}")
-   println(part1(input))
-   println(part2(input))
+    val input = readInput("Day{n}")
+    println(part1(input))
+    println(part2(input))
 }}
 '''.format(n=day))
 f.close()
