@@ -24,7 +24,7 @@ fun main() {
         val procedures = mutableListOf<Procedure>()
         for (line in input) {
             if (!line.startsWith("move")) continue
-            val regex = Regex("[0-9]")
+            val regex = Regex("[0-9]+")
             val proc = regex.findAll(line).toList().map { it.value.toInt() }
             procedures.add(Procedure(proc[0], proc[1] - 1, proc[2] - 1))
         }
@@ -32,10 +32,18 @@ fun main() {
         return procedures
     }
 
-    fun part1(state: List<ArrayDeque<Char>>, procedures: List<Procedure>): String {
+    fun solve(state: List<ArrayDeque<Char>>, procedures: List<Procedure>, canMoveMultipleAtOnce: Boolean): String {
         for (procedure in procedures) {
+            val cratesToMove = mutableListOf<Char>()
             repeat(procedure.move) {
-                state[procedure.to].add(state[procedure.from].removeLast())
+                val crate = state[procedure.from].removeLast()
+                cratesToMove.add(crate)
+            }
+
+            if (canMoveMultipleAtOnce) cratesToMove.reverse()
+
+            for (crate in cratesToMove) {
+                state[procedure.to].add(crate)
             }
         }
 
@@ -47,19 +55,23 @@ fun main() {
         return message
     }
 
-    fun part2(input: List<String>): Int {
-        return 0
+    fun part1(state: List<ArrayDeque<Char>>, procedures: List<Procedure>): String {
+        return solve(state, procedures, false)
     }
 
+    fun part2(state: List<ArrayDeque<Char>>, procedures: List<Procedure>): String {
+        return solve(state, procedures, true)
+    }
+
+    // TODO: find a way of deep-copying a list of ArrayDeque instead of re-parsing the input each time
+
     val testInput = readInput("Day05_test")
-    val testInitialState = parseInitialState(testInput)
     val testProcedures = parseProcedures(testInput)
-    check(part1(testInitialState, testProcedures) == "CMZ")
-    check(part2(testInput) == 0)
+    check(part1(parseInitialState(testInput), testProcedures) == "CMZ")
+    check(part2(parseInitialState(testInput), testProcedures) == "MCD")
 
     val input = readInput("Day05")
-    val initialState = parseInitialState(input)
     val procedures = parseProcedures(input)
-    println(part1(initialState, procedures))
-    println(part2(input))
+    println(part1(parseInitialState(input), procedures))
+    println(part2(parseInitialState(input), procedures))
 }
