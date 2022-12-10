@@ -21,52 +21,54 @@ fun main() {
             val direction = parts[0]
             val spaces = parts[1].toInt()
 
-            when (direction) {
-                "U" -> head.y += spaces
-                "R" -> head.x += spaces
-                "D" -> head.y -= spaces
-                "L" -> head.x -= spaces
-            }
-
-            for (i in 1 until rope.size) {
-                val lead = rope[i - 1]
-                val knot = rope[i]
-
-                if (lead.x != knot.x && lead.y != knot.y && (abs(lead.x - knot.x) + abs(lead.y - knot.y)) > 2) {
-                    if (lead.x > knot.x) {
-                        knot.x++
-                    } else if (lead.x < knot.x) {
-                        knot.x--
-                    }
-
-                    if (lead.y > knot.y) {
-                        knot.y++
-                    } else if (lead.y < knot.y) {
-                        knot.y--
-                    }
-
-                    if (i == rope.size - 1) visited.add(knot.toString())
+            repeat (spaces) {
+                when (direction) {
+                    "U" -> head.y++
+                    "R" -> head.x++
+                    "D" -> head.y--
+                    "L" -> head.x--
                 }
 
-                if (lead.x - knot.x > 1) {
-                    repeat((lead.x - knot.x) - 1) {
-                        knot.x++
+                for (i in 1 until rope.size) {
+                    val lead = rope[i - 1]
+                    val knot = rope[i]
+
+                    if (lead.x != knot.x && lead.y != knot.y && (abs(lead.x - knot.x) + abs(lead.y - knot.y)) > 2) {
+                        if (lead.x > knot.x) {
+                            knot.x++
+                        } else if (lead.x < knot.x) {
+                            knot.x--
+                        }
+
+                        if (lead.y > knot.y) {
+                            knot.y++
+                        } else if (lead.y < knot.y) {
+                            knot.y--
+                        }
+
                         if (i == rope.size - 1) visited.add(knot.toString())
                     }
-                } else if (knot.x - lead.x > 1) {
-                    repeat((knot.x - lead.x) - 1) {
-                        knot.x--
-                        if (i == rope.size - 1) visited.add(knot.toString())
-                    }
-                } else if (lead.y - knot.y > 1) {
-                    repeat((lead.y - knot.y) - 1) {
-                        knot.y++
-                        if (i == rope.size - 1) visited.add(knot.toString())
-                    }
-                } else if (knot.y - lead.y > 1) {
-                    repeat((knot.y - lead.y) - 1) {
-                        knot.y--
-                        if (i == rope.size - 1) visited.add(knot.toString())
+
+                    if (lead.x - knot.x > 1) {
+                        repeat((lead.x - knot.x) - 1) {
+                            knot.x++
+                            if (i == rope.size - 1) visited.add(knot.toString())
+                        }
+                    } else if (knot.x - lead.x > 1) {
+                        repeat((knot.x - lead.x) - 1) {
+                            knot.x--
+                            if (i == rope.size - 1) visited.add(knot.toString())
+                        }
+                    } else if (lead.y - knot.y > 1) {
+                        repeat((lead.y - knot.y) - 1) {
+                            knot.y++
+                            if (i == rope.size - 1) visited.add(knot.toString())
+                        }
+                    } else if (knot.y - lead.y > 1) {
+                        repeat((knot.y - lead.y) - 1) {
+                            knot.y--
+                            if (i == rope.size - 1) visited.add(knot.toString())
+                        }
                     }
                 }
             }
