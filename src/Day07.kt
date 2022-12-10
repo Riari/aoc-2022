@@ -104,7 +104,7 @@ fun main() {
 
         return smallest
     }
-1
+
     fun part1(node: Node): Int {
         return sumDirectories(node, 100000)
     }
