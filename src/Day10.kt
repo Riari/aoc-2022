@@ -34,10 +34,10 @@ fun main() {
         val cycles = processCycles(input)
         var result = ""
         for (i in cycles.indices) {
-            if (((i) % 40) in (cycles[i] - 1)..(cycles[i] + 1)) {
-                result += "\uD83C\uDF81"
+            result += if (((i) % 40) in (cycles[i] - 1)..(cycles[i] + 1)) {
+                "\uD83C\uDF81"
             } else {
-                result += "\uD83C\uDF84"
+                "\uD83C\uDF84"
             }
 
             if (((i + 1) % 40) == 0) {
