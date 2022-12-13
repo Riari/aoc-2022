@@ -14,3 +14,15 @@ fun readInput(name: String) = File("input", "$name.txt")
 fun String.md5() = BigInteger(1, MessageDigest.getInstance("MD5").digest(toByteArray()))
     .toString(16)
     .padStart(32, '0')
+
+/**
+ * Flattens a list of pairs.
+ */
+fun <T> List<Pair<T, T>>.flatten(): MutableList<T> {
+    val accumulator = mutableListOf<T>()
+    this.forEach {
+        accumulator.add(it.first)
+        accumulator.add(it.second)
+    }
+    return accumulator
+}
