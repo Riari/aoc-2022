@@ -15,12 +15,10 @@ fun main() {
                 .windowed(2, 1)
 
             for ((a, b) in path) {
-                if (a.y == b.y) {
-                    for (x in minOf(a.x, b.x)..maxOf(a.x, b.x)) slice.tiles[a.y][x] = '#'
-                }
-
-                if (a.x == b.x) {
-                    for (y in minOf(a.y, b.y)..maxOf(a.y, b.y)) slice.tiles[y][a.x] = '#'
+                for (y in minOf(a.y, b.y)..maxOf(a.y, b.y)) {
+                    for (x in minOf(a.x, b.x)..maxOf(a.x, b.x)) {
+                        slice.tiles[y][x] = '#'
+                    }
                 }
 
                 if (a.y > slice.deepestRock) slice.deepestRock = a.y
