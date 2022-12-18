@@ -14,10 +14,10 @@ fun main() {
 
     data class Vector(val x: Int, val y: Int, val z: Int) {
         fun isAdjacentTo(other: Vector): Boolean {
-            val onX = y == other.y && z == other.z && abs(x - other.x) == 1
-            val onY = x == other.x && z == other.z && abs(y - other.y) == 1
-            val onZ = x == other.x && y == other.y && abs(z - other.z) == 1
-            return onX || onY || onZ
+            if (y == other.y && z == other.z && abs(x - other.x) == 1) return true
+            if (x == other.x && z == other.z && abs(y - other.y) == 1) return true
+            if (x == other.x && y == other.y && abs(z - other.z) == 1) return true
+            return false
         }
     }
 
