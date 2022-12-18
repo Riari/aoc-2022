@@ -49,17 +49,17 @@ fun main() {
             return movedShape.any { view.getOrNull(it.y)?.getOrElse(it.x) { false } == true }
         }
 
-        fun rockCanGoLeft(rock: Rock): Boolean {
+        fun canRockGoLeft(rock: Rock): Boolean {
             if (rockWillCollideWithAny(rock, DIRECTION_LEFT)) return false
             return rock.position.x > 0
         }
 
-        fun rockCanGoRight(rock: Rock): Boolean {
+        fun canRockGoRight(rock: Rock): Boolean {
             if (rockWillCollideWithAny(rock, DIRECTION_RIGHT)) return false
             return (rock.position.x + rock.dimensions.x) < view[0].size
         }
 
-        fun rockCanGoDown(rock: Rock): Boolean {
+        fun canRockGoDown(rock: Rock): Boolean {
             if (rockWillCollideWithAny(rock, DIRECTION_DOWN)) return false
             return rock.position.y > 0
         }
@@ -71,11 +71,14 @@ fun main() {
         }
 
         fun getHeightProfile(): List<Int> {
+            // TODO: Update this to produce more of a "depth map" (relative to the current total height).
             val profile = MutableList(7) { 0 }
-            for ((y, row) in view.withIndex()) {
-                for ((x, value) in row.withIndex()) {
-                    if (value) profile[x] = y + 1
+            for (y in view.size - 1 downTo 0) {
+                for ((x, value) in view[y].withIndex()) {
+                    if (value && profile[x] < y + 1) profile[x] = y + 1
                 }
+
+                if (profile.none { it == 0 }) return profile
             }
 
             return profile
@@ -121,12 +124,6 @@ fun main() {
         var height = 0
         val window = Window(5000)
         val rounds = if (forPartTwo) 100000 else 2022
-        val partTwoRounds = 1_000_000_000_000L
-        val seen = mutableSetOf<String>()
-        var heightWhenFloorUnreachable = 0 // Height at which the floor became unreachable (blocked by rocks)
-        var roundsWhenFloorUnreachable = 0 // Round at which the floor became unreachable
-        var newHeightProfileLastSeenAt = 0 // Last round at which a new complete height profile was seen
-        var lastRecordedNewHeight = 0 // Last height recorded with height profile change
 
         println("\nSolving with $rounds rounds...")
 
@@ -134,54 +131,29 @@ fun main() {
         val percentagesShown = mutableSetOf(0)
 
         repeat (rounds) { round ->
+            // TODO: Identify the beginning of a cycle (after a warm-up period) and its end using a hash of the current state.
+            // TODO: Derive height delta from the above and use it to determine what the total height would be at the end.
+
             val rock = rocks[rockIndex++].spawn(height + 3)
             if (rockIndex == rocks.size) rockIndex = 0
+
+            window.slideIfNeeded(height, rock.dimensions.y + 3)
 
             while (true) {
                 val jet = jets[jetIndex++]
                 if (jetIndex == jets.length) jetIndex = 0
 
-                if (jet == '<' && window.rockCanGoLeft(rock)) {
-                    rock.move(DIRECTION_LEFT)
-                } else if (jet == '>' && window.rockCanGoRight(rock)) {
-                    rock.move(DIRECTION_RIGHT)
-                }
+                if (jet == '<' && window.canRockGoLeft(rock)) rock.move(DIRECTION_LEFT)
+                else if (jet == '>' && window.canRockGoRight(rock)) rock.move(DIRECTION_RIGHT)
 
-                if (!window.rockCanGoDown(rock)) break
-
-                rock.move(DIRECTION_DOWN)
+                if (window.canRockGoDown(rock)) rock.move(DIRECTION_DOWN)
+                else break
             }
 
             window.add(rock)
 
             if (rock.position.y + rock.dimensions.y > height) {
                 height = rock.position.y + rock.dimensions.y
-            }
-
-            window.slideIfNeeded(height, rocks[rockIndex].dimensions.y + 3)
-
-            val heightProfile = window.getHeightProfile()
-            if (heightWhenFloorUnreachable == 0 && heightProfile.none { it == 0 }) {
-                // Floor is no longer reachable. At this point, we can start looking for cycles.
-                heightWhenFloorUnreachable = height
-                roundsWhenFloorUnreachable = round
-            }
-
-            val hash = "$rockIndex:$jetIndex:${heightProfile.map { it.toString() }}"
-            if (heightWhenFloorUnreachable > 0 && !seen.contains(hash)) {
-                seen.add(hash)
-                newHeightProfileLastSeenAt = round
-                lastRecordedNewHeight = height
-            }
-
-            if (newHeightProfileLastSeenAt > 0 && round - newHeightProfileLastSeenAt > 80000) {
-                // Cycle detected.
-                val remainingRounds = partTwoRounds - round
-                val roundsTaken = newHeightProfileLastSeenAt - roundsWhenFloorUnreachable
-                val heightProduced = lastRecordedNewHeight - heightWhenFloorUnreachable
-                val multiplier = remainingRounds / roundsTaken
-                val partTwoResult = (heightProduced.toLong() * multiplier)
-                return partTwoResult
             }
 
             val completed = (((round + 1).toFloat() / rounds.toFloat()) * 100).toInt()
