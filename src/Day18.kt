@@ -49,7 +49,6 @@ fun main() {
 
         if (!withoutInterior) return totalFaces
 
-        val airPocketPositions = mutableListOf<Vector>()
         for (x in xRange) {
             for (y in yRange) {
                 for (z in zRange) {
@@ -64,14 +63,13 @@ fun main() {
                         (z downTo zRange.min).any { grid.has(x, y, it) }  // Below
                     )
 
-                    if (blocked.all { it }) airPocketPositions.add(Vector(x, y, z))
+                    // TODO: update this to measure distances so that the additional adjacency checks aren't needed
+                    if (blocked.all { it }) {
+                        for (block in grid) {
+                            if (Vector(x, y, z).isAdjacentTo(block)) totalFaces--
+                        }
+                    }
                 }
-            }
-        }
-
-        for (position in airPocketPositions) {
-            for (block in grid) {
-                if (position.isAdjacentTo(block)) totalFaces--
             }
         }
 
