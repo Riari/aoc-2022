@@ -1,6 +1,17 @@
 import kotlin.math.abs
 
 fun main() {
+    data class MinMax(var min: Int = Int.MAX_VALUE, var max: Int = Int.MIN_VALUE): Iterable<Int> {
+        fun update(value: Int) {
+            min = minOf(min, value)
+            max = maxOf(max, value)
+        }
+
+        override fun iterator(): Iterator<Int> {
+            return (min..max).iterator()
+        }
+    }
+
     data class Vector(val x: Int, val y: Int, val z: Int) {
         fun isAdjacentTo(other: Vector): Boolean {
             val onX = y == other.y && z == other.z && abs(x - other.x) == 1
@@ -21,9 +32,7 @@ fun main() {
 
     fun solve(grid: List<Vector>, withoutInterior: Boolean = false): Int {
         var totalFaces = grid.size * 6
-        var minX = 100; var maxX = 0
-        var minY = 100; var maxY = 0
-        var minZ = 100; var maxZ = 0
+        val xRange = MinMax(); val yRange = MinMax(); val zRange = MinMax()
 
         for (position in grid) {
             for (other in grid) {
@@ -32,35 +41,30 @@ fun main() {
             }
 
             if (withoutInterior) {
-                if (position.x < minX) minX = position.x
-                else if (position.x > maxX) maxX = position.x
-                if (position.y < minY) minY = position.y
-                else if (position.y > maxY) maxY = position.y
-                if (position.z < minZ) minZ = position.z
-                else if (position.z > maxZ) maxZ = position.z
+                xRange.update(position.x)
+                yRange.update(position.y)
+                zRange.update(position.z)
             }
         }
 
         if (!withoutInterior) return totalFaces
 
         val airPocketPositions = mutableListOf<Vector>()
-        for (x in minX..maxX) {
-            for (y in minY..maxY) {
-                for (z in minZ..maxZ) {
+        for (x in xRange) {
+            for (y in yRange) {
+                for (z in zRange) {
                     if (grid.has(x, y, z)) continue
 
                     val blocked = listOf(
-                        (x downTo minX).any { grid.has(it, y, z) }, // Left
-                        (x .. maxX).any { grid.has(it, y, z) },     // Right
-                        (y .. maxY).any { grid.has(x, it, z) },     // Forward
-                        (y downTo minY).any { grid.has(x, it, z) }, // Backward
-                        (z .. maxZ).any { grid.has(x, y, it) },     // Above
-                        (z downTo minZ).any { grid.has(x, y, it) }  // Below
+                        (x .. xRange.max).any { grid.has(it, y, z) },     // Right
+                        (x downTo xRange.min).any { grid.has(it, y, z) }, // Left
+                        (y .. yRange.max).any { grid.has(x, it, z) },     // Forward
+                        (y downTo yRange.min).any { grid.has(x, it, z) }, // Backward
+                        (z .. zRange.max).any { grid.has(x, y, it) },     // Above
+                        (z downTo zRange.min).any { grid.has(x, y, it) }  // Below
                     )
 
-                    if (blocked.all { it }) {
-                        airPocketPositions.add(Vector(x, y, z))
-                    }
+                    if (blocked.all { it }) airPocketPositions.add(Vector(x, y, z))
                 }
             }
         }
