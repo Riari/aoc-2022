@@ -5,11 +5,6 @@ fun main() {
         }
     }
 
-    fun List<Vector>.has(vec: Vector): Boolean {
-        return this.any { it.x == vec.x && it.y == vec.y }
-    }
-
-    val TUNNEL_WIDTH = 7
     val DIRECTION_LEFT = Vector(-1, 0)
     val DIRECTION_RIGHT = Vector(1, 0)
     val DIRECTION_DOWN = Vector(0, -1)
@@ -44,25 +39,49 @@ fun main() {
         fun getAbsolutePositions(): List<Vector> {
             return shape.map { it + position }
         }
+    }
 
-        fun willCollideWithAny(window: Array<BooleanArray>, windowOffset: Int, direction: Vector): Boolean {
-            val movedShape = shape.map { Vector(position.x + it.x + direction.x, position.y + it.y + direction.y - windowOffset) }
-            return movedShape.any { window.getOrNull(it.y)?.getOrElse(it.x) { false } == true }
+    class Window(val view: Array<BooleanArray> = Array(5000) { BooleanArray(7) { false } }, var offset: Int = 0) {
+        fun rockWillCollideWithAny(rock: Rock, direction: Vector): Boolean {
+            val movedShape = rock.shape.map { Vector(rock.position.x + it.x + direction.x, rock.position.y + it.y + direction.y - offset) }
+            return movedShape.any { view.getOrNull(it.y)?.getOrElse(it.x) { false } == true }
         }
 
-        fun canGoLeft(window: Array<BooleanArray>, windowOffset: Int): Boolean {
-            if (willCollideWithAny(window, windowOffset, DIRECTION_LEFT)) return false
-            return position.x > 0
+        fun rockCanGoLeft(rock: Rock): Boolean {
+            if (rockWillCollideWithAny(rock, DIRECTION_LEFT)) return false
+            return rock.position.x > 0
         }
 
-        fun canGoRight(window: Array<BooleanArray>, windowOffset: Int): Boolean {
-            if (willCollideWithAny(window, windowOffset, DIRECTION_RIGHT)) return false
-            return (position.x + dimensions.x) < TUNNEL_WIDTH
+        fun rockCanGoRight(rock: Rock): Boolean {
+            if (rockWillCollideWithAny(rock, DIRECTION_RIGHT)) return false
+            return (rock.position.x + rock.dimensions.x) < view[0].size
         }
 
-        fun canGoDown(window: Array<BooleanArray>, windowOffset: Int): Boolean {
-            if (willCollideWithAny(window, windowOffset, DIRECTION_DOWN)) return false
-            return position.y > 0
+        fun rockCanGoDown(rock: Rock): Boolean {
+            if (rockWillCollideWithAny(rock, DIRECTION_DOWN)) return false
+            return rock.position.y > 0
+        }
+
+        fun add(rock: Rock) {
+            for (vec in rock.getAbsolutePositions()) {
+                view[vec.y - offset][vec.x] = true
+            }
+        }
+
+        fun slideIfNeeded(height: Int, spawnArea: Int) {
+            val absoluteWindowTop = offset + view.size
+            val availableSpace = absoluteWindowTop - height
+            if (spawnArea > availableSpace) {
+                val rowsToAdd = spawnArea - availableSpace
+                repeat (rowsToAdd) {
+                    view[it] = view[it + 1]
+                }
+
+                for (i in view.size - 1 downTo view.size - rowsToAdd - 1) {
+                    view[i] = BooleanArray(7) { false }
+                    offset++
+                }
+            }
         }
     }
 
@@ -83,28 +102,12 @@ fun main() {
         Rock(shape)
     }
 
-    fun printWindow(window: Array<BooleanArray>, rock: Rock, withFloor: Boolean) {
-        for (y in window.size - 1 downTo  0) {
-            print("|")
-            for ((x, pos) in window[y].withIndex()) {
-                if (Vector(x, y) in rock.getAbsolutePositions()) print("@")
-                else if (pos) print("#")
-                else print(".")
-            }
-            print("|")
-            print('\n')
-        }
-
-        if (withFloor) print("+-------+")
-        print("\n\n")
-    }
-
-    fun solve(input: List<String>, rounds: Int): Long {
+    fun solve(input: List<String>, forPartTwo: Boolean = false): Long {
         var rockIndex = 0; var jetIndex = 0
         val jets = input[0]
         var height = 0
-        var windowOffset = 0
-        val window = Array(5000) { BooleanArray(7) { false } }
+        val window = Window()
+        val rounds = if (forPartTwo) 10000 else 2022
 
         println("\nSolving with $rounds rounds...")
 
@@ -116,44 +119,27 @@ fun main() {
             if (rockIndex == rocks.size) rockIndex = 0
 
             while (true) {
-//                printWindow(window, rock, windowOffset == 0)
                 val jet = jets[jetIndex++]
                 if (jetIndex == jets.length) jetIndex = 0
 
-                if (jet == '<' && rock.canGoLeft(window, windowOffset)) {
+                if (jet == '<' && window.rockCanGoLeft(rock)) {
                     rock.move(DIRECTION_LEFT)
-                } else if (jet == '>' && rock.canGoRight(window, windowOffset)) {
+                } else if (jet == '>' && window.rockCanGoRight(rock)) {
                     rock.move(DIRECTION_RIGHT)
                 }
-//                printWindow(window, rock, windowOffset == 0)
 
-                if (!rock.canGoDown(window, windowOffset)) break
+                if (!window.rockCanGoDown(rock)) break
 
                 rock.move(DIRECTION_DOWN)
             }
 
-            for (vec in rock.getAbsolutePositions()) {
-                window[vec.y - windowOffset][vec.x] = true
-            }
+            window.add(rock)
 
             if (rock.position.y + rock.dimensions.y > height) {
                 height = rock.position.y + rock.dimensions.y
             }
 
-            val absoluteWindowTop = windowOffset + window.size
-            val availableSpace = absoluteWindowTop - height
-            val spawnArea = rocks[rockIndex].dimensions.y + 3
-            if (spawnArea > availableSpace) {
-                val rowsToAdd = spawnArea - availableSpace
-                repeat (rowsToAdd) {
-                    window[it] = window[it + 1]
-                }
-
-                for (i in window.size - 1 downTo window.size - rowsToAdd - 1) {
-                    window[i] = BooleanArray(7) { false }
-                    windowOffset++
-                }
-            }
+            window.slideIfNeeded(height, rocks[rockIndex].dimensions.y + 3)
 
             val completed = (((round + 1).toFloat() / rounds.toFloat()) * 100).toInt()
             if (!percentagesShown.contains(completed) && completed % 20 == 0) {
@@ -167,12 +153,11 @@ fun main() {
     }
 
     fun part1(input: List<String>): Long {
-        return solve(input, 2022)
+        return solve(input)
     }
 
     fun part2(input: List<String>): Long {
-//        return solve(input, 1_000_000_000_000L)
-        return 0
+        return solve(input, true)
     }
 
     val testInput = readInput("Day17_test")
