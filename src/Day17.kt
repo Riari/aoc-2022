@@ -1,7 +1,5 @@
 fun main() {
-    val tunnelWidth = 8
-
-    data class Vector(var x: Long, var y: Long) {
+    data class Vector(var x: Int, var y: Int) {
         operator fun plus(other: Vector): Vector {
             return Vector(x + other.x, y + other.y)
         }
@@ -11,6 +9,7 @@ fun main() {
         return this.any { it.x == vec.x && it.y == vec.y }
     }
 
+    val TUNNEL_WIDTH = 7
     val DIRECTION_LEFT = Vector(-1, 0)
     val DIRECTION_RIGHT = Vector(1, 0)
     val DIRECTION_DOWN = Vector(0, -1)
@@ -23,18 +22,18 @@ fun main() {
         }
 
         fun updateDimensions() {
-            var maxY = 0L; var maxX = 0L
+            var maxY = 0; var maxX = 0
             for (vec in shape) {
                 if (vec.x > maxX) maxX = vec.x
                 if (vec.y > maxY) maxY = vec.y
             }
 
-            dimensions.x = maxX + 1L
-            dimensions.y = maxY + 1L
+            dimensions.x = maxX + 1
+            dimensions.y = maxY + 1
         }
 
-        fun spawn(height: Long): Rock {
-            return Rock(shape.toList(), Vector(3, height))
+        fun spawn(height: Int): Rock {
+            return Rock(shape.toList(), Vector(2, height))
         }
 
         fun move(direction: Vector) {
@@ -46,24 +45,24 @@ fun main() {
             return shape.map { it + position }
         }
 
-        fun willCollideWithAny(rocks: List<Vector>, direction: Vector): Boolean {
-            val movedShape = shape.map { Vector(position.x + it.x + direction.x, position.y + it.y + direction.y) }
-            return rocks.any { movedShape.has(it) }
+        fun willCollideWithAny(window: Array<BooleanArray>, windowOffset: Int, direction: Vector): Boolean {
+            val movedShape = shape.map { Vector(position.x + it.x + direction.x, position.y + it.y + direction.y - windowOffset) }
+            return movedShape.any { window.getOrNull(it.y)?.getOrElse(it.x) { false } == true }
         }
 
-        fun canGoLeft(rocks: List<Vector>): Boolean {
-            if (willCollideWithAny(rocks, DIRECTION_LEFT)) return false
-            return position.x > 1
+        fun canGoLeft(window: Array<BooleanArray>, windowOffset: Int): Boolean {
+            if (willCollideWithAny(window, windowOffset, DIRECTION_LEFT)) return false
+            return position.x > 0
         }
 
-        fun canGoRight(rocks: List<Vector>): Boolean {
-            if (willCollideWithAny(rocks, DIRECTION_RIGHT)) return false
-            return (position.x + dimensions.x) < tunnelWidth
+        fun canGoRight(window: Array<BooleanArray>, windowOffset: Int): Boolean {
+            if (willCollideWithAny(window, windowOffset, DIRECTION_RIGHT)) return false
+            return (position.x + dimensions.x) < TUNNEL_WIDTH
         }
 
-        fun canGoDown(rocks: List<Vector>): Boolean {
-            if (willCollideWithAny(rocks, DIRECTION_DOWN)) return false
-            return position.y > 1
+        fun canGoDown(window: Array<BooleanArray>, windowOffset: Int): Boolean {
+            if (willCollideWithAny(window, windowOffset, DIRECTION_DOWN)) return false
+            return position.y > 0
         }
     }
 
@@ -77,87 +76,86 @@ fun main() {
         val shape = mutableListOf<Vector>()
         for (y in it.indices) {
             for (x in it[y].indices) {
-                if (it[y][x] == '#') shape.add(Vector(x.toLong(), y.toLong()))
+                if (it[y][x] == '#') shape.add(Vector(x, y))
             }
         }
 
         Rock(shape)
     }
 
-    fun printTunnel(height: Int, settled: List<Rock>, current: Rock) {
-        val tunnel = mutableListOf<MutableList<Char>>()
-        for (y in 0..height + 5) {
-            val row = mutableListOf<Char>()
-            for (x in 0..tunnelWidth) {
-                var char = '.'
-                if (y == 0 && (x == 0 || x == tunnelWidth)) char = '+'
-                else if (y == 0) char = '-'
-                else if (x == 0 || x == tunnelWidth) char = '|'
-                row.add(char)
+    fun printWindow(window: Array<BooleanArray>, rock: Rock, withFloor: Boolean) {
+        for (y in window.size - 1 downTo  0) {
+            print("|")
+            for ((x, pos) in window[y].withIndex()) {
+                if (Vector(x, y) in rock.getAbsolutePositions()) print("@")
+                else if (pos) print("#")
+                else print(".")
             }
-            tunnel.add(row)
-        }
-
-        for (rock in settled.union(listOf(current))) {
-            for (vec in rock.shape) {
-                tunnel[(rock.position.y + vec.y).toInt()][(rock.position.x + vec.x).toInt()] = '#'
-            }
-        }
-
-        tunnel.reverse()
-
-        for (row in tunnel) {
-            for (char in row) {
-                print(char)
-            }
+            print("|")
             print('\n')
         }
+
+        if (withFloor) print("+-------+")
+        print("\n\n")
     }
 
     fun solve(input: List<String>, rounds: Int): Long {
         var rockIndex = 0; var jetIndex = 0
-        var height = 1L
         val jets = input[0]
-        val maxSettledRock = 200 // max number of positions to store for settled rocks
-        val settledRock = mutableListOf<Vector>()
+        var height = 0
+        var windowOffset = 0
+        val window = Array(5000) { BooleanArray(7) { false } }
 
         println("\nSolving with $rounds rounds...")
 
         val begin = System.currentTimeMillis()
         val percentagesShown = mutableSetOf(0)
 
-        repeat (rounds) {
+        repeat (rounds) { round ->
             val rock = rocks[rockIndex++].spawn(height + 3)
             if (rockIndex == rocks.size) rockIndex = 0
 
             while (true) {
+//                printWindow(window, rock, windowOffset == 0)
                 val jet = jets[jetIndex++]
                 if (jetIndex == jets.length) jetIndex = 0
 
-                if (jet == '<' && rock.canGoLeft(settledRock)) {
+                if (jet == '<' && rock.canGoLeft(window, windowOffset)) {
                     rock.move(DIRECTION_LEFT)
-                } else if (jet == '>' && rock.canGoRight(settledRock)) {
+                } else if (jet == '>' && rock.canGoRight(window, windowOffset)) {
                     rock.move(DIRECTION_RIGHT)
                 }
+//                printWindow(window, rock, windowOffset == 0)
 
-                if (!rock.canGoDown(settledRock)) break
+                if (!rock.canGoDown(window, windowOffset)) break
 
                 rock.move(DIRECTION_DOWN)
             }
 
-            settledRock.addAll(0, rock.getAbsolutePositions())
-
-            if (settledRock.size > maxSettledRock) {
-                repeat (settledRock.size - maxSettledRock) {
-                    settledRock.removeLast()
-                }
+            for (vec in rock.getAbsolutePositions()) {
+                window[vec.y - windowOffset][vec.x] = true
             }
 
             if (rock.position.y + rock.dimensions.y > height) {
                 height = rock.position.y + rock.dimensions.y
             }
 
-            val completed = (((it + 1).toFloat() / rounds.toFloat()) * 100).toInt()
+            val absoluteWindowTop = windowOffset + window.size
+            val availableSpace = absoluteWindowTop - height
+            val spawnArea = rocks[rockIndex].dimensions.y + 3
+            if (spawnArea > availableSpace) {
+                val rowsToAdd = spawnArea - availableSpace
+                repeat (rowsToAdd) {
+                    window[it] = window[it + 1]
+                }
+
+                for (i in window.size - 1 downTo window.size - rowsToAdd - 1) {
+                    window[i] = BooleanArray(7) { false }
+                    windowOffset++
+                }
+            }
+
+            val completed = (((round + 1).toFloat() / rounds.toFloat()) * 100).toInt()
             if (!percentagesShown.contains(completed) && completed % 20 == 0) {
                 val elapsed = System.currentTimeMillis() - begin
                 println("$completed% complete (elapsed: $elapsed ms)")
@@ -165,7 +163,7 @@ fun main() {
             }
         }
 
-        return height - 1
+        return height.toLong()
     }
 
     fun part1(input: List<String>): Long {
