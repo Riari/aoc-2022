@@ -123,7 +123,7 @@ fun main() {
         val seenJets = mutableSetOf<Int>()
         var height = 0
         val seenHeights = mutableListOf<Int>()
-        val window = if (isPartTwo) Window(10_000) else Window(5000)
+        val window = if (isPartTwo) Window(6000) else Window(5000)
         val rounds = if (isPartTwo) 3500 else 2022
         val partTwoRounds = 1_000_000_000_000L
 
