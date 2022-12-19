@@ -70,10 +70,10 @@ fun main() {
             }
         }
 
-        fun getHeightProfile(): List<Int> {
+        fun getDepthProfile(height: Int): List<Int> {
             // TODO: Update this to produce more of a "depth map" (relative to the current total height).
             val profile = MutableList(7) { 0 }
-            for (y in view.size - 1 downTo 0) {
+            for (y in height - offset downTo 0) {
                 for ((x, value) in view[y].withIndex()) {
                     if (value && profile[x] < y + 1) profile[x] = y + 1
                 }
@@ -118,12 +118,18 @@ fun main() {
         Rock(shape)
     }
 
-    fun solve(input: List<String>, forPartTwo: Boolean = false): Long {
-        var rockIndex = 0; var jetIndex = 0
+    fun solve(input: List<String>, isPartTwo: Boolean = false): Long {
         val jets = input[0]
+        val seenJets = mutableSetOf<Int>()
         var height = 0
-        val window = Window(5000)
-        val rounds = if (forPartTwo) 100000 else 2022
+        val seenHeights = mutableListOf<Int>()
+        val window = if (isPartTwo) Window(10_000) else Window(5000)
+        val rounds = if (isPartTwo) 3500 else 2022
+        val partTwoRounds = 1_000_000_000_000L
+
+        var rockIndex = 0; var jetIndex = 0
+        var roundAtCycleStart = -1
+        var jetIndexAtCycleStart = -1
 
         println("\nSolving with $rounds rounds...")
 
@@ -131,9 +137,6 @@ fun main() {
         val percentagesShown = mutableSetOf(0)
 
         repeat (rounds) { round ->
-            // TODO: Identify the beginning of a cycle (after a warm-up period) and its end using a hash of the current state.
-            // TODO: Derive height delta from the above and use it to determine what the total height would be at the end.
-
             val rock = rocks[rockIndex++].spawn(height + 3)
             if (rockIndex == rocks.size) rockIndex = 0
 
@@ -154,6 +157,24 @@ fun main() {
 
             if (rock.position.y + rock.dimensions.y > height) {
                 height = rock.position.y + rock.dimensions.y
+            }
+
+            if (isPartTwo && rockIndex == 0) {
+                if (jetIndexAtCycleStart == -1 && !seenJets.add(jetIndex)) {
+                    roundAtCycleStart = round
+                    jetIndexAtCycleStart = jetIndex
+                } else if (jetIndex == jetIndexAtCycleStart) {
+                    val heightDelta = seenHeights.last() - seenHeights.first()
+                    val roundsDelta = round - roundAtCycleStart
+                    val roundsRemaining = partTwoRounds - roundAtCycleStart
+                    val cyclesRemaining = roundsRemaining / roundsDelta
+                    val finalHeight = (cyclesRemaining * heightDelta) + seenHeights[(roundsRemaining % roundsDelta).toInt()]
+                    return finalHeight - 1
+                }
+            }
+
+            if (jetIndexAtCycleStart > -1) {
+                seenHeights.add(height)
             }
 
             val completed = (((round + 1).toFloat() / rounds.toFloat()) * 100).toInt()
