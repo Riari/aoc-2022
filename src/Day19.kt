@@ -170,33 +170,16 @@ fun main() {
         return Simulator(blueprint).run(state)
     }
 
-    // TODO: Ditch coroutines for both parts as they're probably not speeding things up in this scenario
-
-    fun part1(blueprints: List<Blueprint>): Int = runBlocking {
-        var result: Int
-        val timeTaken = measureTimeMillis {
-            result = blueprints
-                .map { async { solve(it, State(24)) } }
-                .withIndex().sumOf { (it.index + 1) * it.value.await() }
-        }
-
-        println("Part 1 completed in $timeTaken ms")
-
-        return@runBlocking result
+    fun part1(blueprints: List<Blueprint>): Int {
+        return blueprints
+            .map { Pair(it.id, solve(it, State(24))) }
+            .sumOf { (it.first) * it.second }
     }
 
-    fun part2(blueprints: List<Blueprint>): Int = runBlocking {
-        var result: Int
-        val timeTaken = measureTimeMillis {
-            result = blueprints.take(3)
-                .map { async { solve(it, State(32)) } }
-                .map { it.await() }
-                .reduce(Int::times)
-        }
-
-        println("Part 2 completed in $timeTaken ms")
-
-        return@runBlocking result
+    fun part2(blueprints: List<Blueprint>): Int {
+        return blueprints.take(3)
+            .map { solve(it, State(32)) }
+            .reduce(Int::times)
     }
 
     val testInput = processInput(readInput("Day19_test"))
