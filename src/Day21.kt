@@ -29,6 +29,7 @@ fun main() {
                 val right = yellers.getOrDefault(monkey.value.rightId, null) ?: continue
 
                 // For part two, when we find the monkey using the value given by humn, start a recursive search for the correct value
+                // TODO: Optimise this properly.
                 if (isPart2) {
                     if (recurse) {
                         val isHumanLeft = monkey.value.leftId == "humn"
