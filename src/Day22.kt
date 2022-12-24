@@ -45,24 +45,23 @@ fun main() {
         private fun moveVertical(spaces: Int, direction: Int)
         {
             for (i in 0 until spaces) {
-                grid[position.y][position.x] = directions[facing]
                 when (cell(Vector2(0, direction))) {
                     '.' -> position.y += direction
                     '#' -> break
                     ' ', null -> {
                         // Out of bounds.
-                        val range = if (direction == -1) (grid.size - 1 downTo position.y + 1) else (0 until position.y)
+                        var y = position.y
 
-                        for (y in range) {
-                            if (position.x >= grid[y].size) continue
-                            when (grid[y][position.x]) {
-                                ' ' -> continue
-                                '#' -> break
-                            }
-
-                            position.y = y
-                            break
+                        while (true) {
+                            if (position.x > grid[y - direction].lastIndex) break
+                            if (grid[y - direction][position.x] == ' ') break
+                            y -= direction
+                            if (y == 0 || y == grid.lastIndex) break
                         }
+
+                        if (grid[y][position.x] == '#') break
+
+                        position.y = y
                     }
                 }
             }
@@ -71,20 +70,22 @@ fun main() {
         private fun moveHorizontal(spaces: Int, direction: Int)
         {
             for (i in 0 until spaces) {
-                grid[position.y][position.x] = directions[facing]
                 when (cell(Vector2(direction, 0))) {
                     '.' -> position.x += direction
                     '#' -> break
-                    ' ' -> {
-                        // Out of bounds to left.
-                        if (lastCellOfRow() == '#') break
-                        position.x = row()!!.size
-                    }
-                    null -> {
-                        // Out of bounds to right.
-                        val offset = row()!!.takeWhile { it == ' ' }.count()
-                        if (row()!![offset] == '#') break
-                        position.x = offset
+                    ' ', null -> {
+                        // Out of bounds.
+                        var x = position.x
+
+                        while (true) {
+                            if (row()!![x - direction] == ' ') break
+                            x -= direction
+                            if (x == 0 || x == row()!!.lastIndex) break
+                        }
+
+                        if (grid[position.y][x] == '#') break
+
+                        position.x = x
                     }
                 }
             }
@@ -98,14 +99,6 @@ fun main() {
         // Gets the current (or specified offset) cell.
         private fun cell(offset: Vector2 = Vector2(0, 0)): Char? {
             return row(offset.y)?.getOrNull(position.x + offset.x)
-        }
-
-        private fun firstCellOfRow(): Char {
-            return row()!![0]
-        }
-
-        private fun lastCellOfRow(): Char {
-            return row()!![row()!!.lastIndex]
         }
     }
 
