@@ -1,5 +1,15 @@
+import kotlin.math.sqrt
+
 fun main() {
-    data class Vector2(var x: Int, var y: Int)
+    data class Vector2(var x: Int, var y: Int) {
+        operator fun plus(other: Vector2): Vector2 {
+            return Vector2(x + other.x, y + other.y)
+        }
+
+        operator fun minus(other: Vector2): Vector2 {
+            return Vector2(x - other.x, y - other.y)
+        }
+    }
 
     // Action can be a movement or a rotation. For movements, the value is the number of spaces to move. For rotations, the value is -1 (left) or 1 (right).
     data class Action(val isRotation: Boolean, val value: Int)
@@ -8,7 +18,20 @@ fun main() {
     class Map(val grid: List<CharArray>, val actions: List<Action>) {
         var position = Vector2(0, 0)
         var facing = 0
-        val directions = listOf('e', 's', 'w', 'n')
+        val facings = listOf('e', 's', 'w', 'n')
+        val directions = mapOf(
+            'e' to Vector2(1, 0),
+            's' to Vector2(0, 1),
+            'w' to Vector2(-1, 0),
+            'n' to Vector2(0, -1),
+        )
+
+        // Cube mapping state
+        var asCube = false
+        var area = 0
+        var sideLength = 0
+        var width = 0; var height = 0
+        var internalCorners = mutableListOf<Vector2>()
 
         init {
             reset()
@@ -17,6 +40,14 @@ fun main() {
         fun reset() {
             position = Vector2(grid[0].takeWhile { it == ' ' }.count(), 0)
             facing = 0
+        }
+
+        fun enableCube() {
+            asCube = true
+            area = grid.sumOf { it.toString().trim().length }
+            sideLength = sqrt((area / 6).toDouble()).toInt()
+            width = grid.maxOf { it.size }
+            height = grid.size
         }
 
         fun print() {
@@ -33,72 +64,61 @@ fun main() {
                     continue
                 }
 
-                when (directions[facing]) {
-                    'n' -> moveVertical(action.value, -1)
-                    'e' -> moveHorizontal(action.value, 1)
-                    's' -> moveVertical(action.value, 1)
-                    'w' -> moveHorizontal(action.value, -1)
-                }
+                move(directions[facings[facing]]!!, action.value)
             }
         }
 
-        private fun moveVertical(spaces: Int, direction: Int)
+        private fun move(direction: Vector2, distance: Int)
         {
-            for (i in 0 until spaces) {
-                when (cell(Vector2(0, direction))) {
-                    '.' -> position.y += direction
+            for (i in 0 until distance) {
+                when (cell(position + direction)) {
+                    '.' -> position += direction
                     '#' -> break
                     ' ', null -> {
                         // Out of bounds.
-                        var y = position.y
-
-                        while (true) {
-                            if (position.x > grid[y - direction].lastIndex) break
-                            if (grid[y - direction][position.x] == ' ') break
-                            y -= direction
-                            if (y == 0 || y == grid.lastIndex) break
-                        }
-
-                        if (grid[y][position.x] == '#') break
-
-                        position.y = y
+                        if (!asCube && !tryWrap(direction)) break
+                        if (asCube && !tryWrapAsCube(direction)) break
                     }
                 }
             }
         }
 
-        private fun moveHorizontal(spaces: Int, direction: Int)
-        {
-            for (i in 0 until spaces) {
-                when (cell(Vector2(direction, 0))) {
-                    '.' -> position.x += direction
-                    '#' -> break
-                    ' ', null -> {
-                        // Out of bounds.
-                        var x = position.x
+        private fun tryWrap(direction: Vector2): Boolean {
+            var pos = position
 
-                        while (true) {
-                            if (row()!![x - direction] == ' ') break
-                            x -= direction
-                            if (x == 0 || x == row()!!.lastIndex) break
-                        }
-
-                        if (grid[position.y][x] == '#') break
-
-                        position.x = x
-                    }
-                }
+            while (true) {
+                if (direction.y != 0 && pos.x > grid[pos.y - direction.y].lastIndex) break
+                if (cell(pos - direction) == ' ') break
+                pos -= direction
+                if (direction.x != 0 && (pos.x == 0 || pos.x == row()!!.lastIndex)) break
+                if (direction.y != 0 && (pos.y == 0 || pos.y == grid.lastIndex)) break
             }
+
+            if (cell(pos) == '#') return false
+
+            position = pos
+            return true
         }
 
-        // Gets the current (or specified offset) row.
-        private fun row(offset: Int = 0): CharArray? {
-            return grid.getOrNull(position.y + offset)
+        private fun tryWrapAsCube(direction: Vector2): Boolean {
+            return false
         }
 
-        // Gets the current (or specified offset) cell.
-        private fun cell(offset: Vector2 = Vector2(0, 0)): Char? {
-            return row(offset.y)?.getOrNull(position.x + offset.x)
+        private fun row(row: Int = position.y): CharArray? {
+            return grid.getOrNull(row)
+        }
+
+        private fun cell(position: Vector2): Char? {
+            return cell(position.x, position.y)
+        }
+
+        private fun cell(x: Int = position.x, y: Int = position.y): Char? {
+            return row(y)?.getOrNull(x)
+        }
+
+        private fun isCellVoid(x: Int, y: Int): Int {
+            if (cell(x, y) == ' ') return 1
+            return 0
         }
     }
 
@@ -123,22 +143,26 @@ fun main() {
         return Map(input.takeWhile { it.isNotBlank() }.map { it.toCharArray() }, actions)
     }
 
-    fun part1(map: Map): Int {
+    fun solve(map: Map, asCube: Boolean = false): Int {
+        map.reset()
+        if (asCube) map.enableCube()
         map.follow()
-        map.print()
-        val result = ((map.position.y + 1) * 1000) + ((map.position.x + 1) * 4) + map.facing
-        return result
+        return ((map.position.y + 1) * 1000) + ((map.position.x + 1) * 4) + map.facing
+    }
+
+    fun part1(map: Map): Int {
+        return solve(map)
     }
 
     fun part2(map: Map): Int {
-        return 0
+        return solve(map, true)
     }
 
     val testInput = processInput(readInput("Day22_test"))
     check(part1(testInput) == 6032)
-    check(part2(testInput) == 0)
+//    check(part2(testInput) == 5031)
 
     val input = processInput(readInput("Day22"))
     println(part1(input))
-    println(part2(input))
+//    println(part2(input))
 }
