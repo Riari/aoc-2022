@@ -38,7 +38,51 @@ fun main() {
         var asCube = false
         var area = 0
         var sideLength = 0
-        var internalCorners = mutableListOf<Vector2>()
+        val innerCornerShapes = listOf(
+            listOf(
+                listOf(1, 1, 0),
+                listOf(1, 1, 1),
+                listOf(1, 1, 1),
+            ),
+            listOf(
+                listOf(1, 1, 1),
+                listOf(1, 1, 1),
+                listOf(1, 1, 0),
+            ),
+            listOf(
+                listOf(1, 1, 1),
+                listOf(1, 1, 1),
+                listOf(0, 1, 1),
+            ),
+            listOf(
+                listOf(0, 1, 1),
+                listOf(1, 1, 1),
+                listOf(1, 1, 1),
+            ),
+        )
+        val outerCornerShapes = listOf(
+            listOf(
+                listOf(0, 0, 0),
+                listOf(0, 1, 1),
+                listOf(0, 1, 1),
+            ),
+            listOf(
+                listOf(0, 0, 0),
+                listOf(1, 1, 0),
+                listOf(1, 1, 0),
+            ),
+            listOf(
+                listOf(1, 1, 0),
+                listOf(1, 1, 0),
+                listOf(0, 0, 0),
+            ),
+            listOf(
+                listOf(0, 1, 1),
+                listOf(0, 1, 1),
+                listOf(0, 0, 0),
+            ),
+        )
+        var innerCorners = mutableListOf<Vector2>()
         val edgeMap = mutableMapOf<Pair<Vector2, Int>, Pair<Vector2, Int>>()
 
         init {
@@ -53,8 +97,9 @@ fun main() {
         }
 
         // Enables cube traversal and maps cube edge coordinates.
-        // I borrowed the algorithm from I borrowed the algorithm for this from https://gist.github.com/juj/1f09f475e01949233a2f206a0552425c.
-        // Thank you, juj!
+        // I borrowed part of the algorithm for this from https://gist.github.com/juj/1f09f475e01949233a2f206a0552425c,
+        // but it has some issues with the way it traverses top/left edges internally the cube and bottom/right edges externally,
+        // so I made some changes to rectify that.
         fun enableCube() {
             asCube = true
             area = grid.sumOf { it.filter { c -> c != ' ' }.size }
@@ -62,9 +107,9 @@ fun main() {
 
             for (y in 0 until height) {
                 for (x in 0 until width) {
-                    if ((isCellVoid(x, y) + isCellVoid(x + 1, y) + isCellVoid(x, y + 1) + isCellVoid(x + 1, y + 1)) == 1) {
-                        internalCorners.add(Vector2(x, y))
-                    }
+                    if (isCellVoid(x, y)) continue
+                    val vector = Vector2(x, y)
+                    if (getInnerCornerShape(vector) >= 0) innerCorners.add(vector)
                 }
             }
 
@@ -73,68 +118,59 @@ fun main() {
         }
 
         private fun mapCubeEdges() {
-            for (corner in internalCorners) {
+            for (corner in innerCorners) {
                 var clockwise = corner
-                var clockwiseHeading = getClockwiseHeading(clockwise)
+                var clockwiseHeading = getHeading(clockwise, true)
                 var clockwiseFacing = getFacingFromIndex(clockwiseHeading)
-                var counterClockwise = corner
-                var counterClockwiseHeading = getCounterClockwiseHeading(counterClockwise)
-                var counterClockwiseFacing = getFacingFromIndex(counterClockwiseHeading)
+                var antiClockwise = corner
+                var antiClockwiseHeading = getHeading(antiClockwise, false)
+                var antiClockwiseFacing = getFacingFromIndex(antiClockwiseHeading)
 
                 while (true) {
                     val clockwiseEnd = clockwise + clockwiseFacing * sideLength
-                    val counterClockwiseEnd = counterClockwise + counterClockwiseFacing * sideLength
-
-                    val newClockwiseHeading = getClockwiseHeading(clockwiseEnd)
-                    val newClockwiseFacing = getFacingFromIndex(newClockwiseHeading)
-                    val newCounterClockwiseHeading = getCounterClockwiseHeading(counterClockwiseEnd)
-                    val newCounterClockwiseFacing = getFacingFromIndex(newCounterClockwiseHeading)
+                    val antiClockwiseEnd = antiClockwise + antiClockwiseFacing * sideLength
 
                     for (n in 1 .. sideLength) {
                         val a = clockwise + clockwiseFacing * n
-                        val b = counterClockwise + counterClockwiseFacing * n
+                        val b = antiClockwise + antiClockwiseFacing * n
                         val fromA = Pair(a, (clockwiseHeading - 1).mod(4))
-                        val toB = Pair(b, (counterClockwiseHeading - 1).mod(4))
-                        val fromB = Pair(b, (counterClockwiseHeading + 1).mod(4))
+                        val toB = Pair(b, (antiClockwiseHeading - 1).mod(4))
+                        val fromB = Pair(b, (antiClockwiseHeading + 1).mod(4))
                         val toA = Pair(a, (clockwiseHeading + 1).mod(4))
                         edgeMap[fromA] = toB
                         edgeMap[fromB] = toA
                     }
 
-                    if (newClockwiseFacing != clockwiseFacing && newCounterClockwiseFacing != counterClockwiseFacing) {
+                    val newClockwiseHeading = getHeading(clockwiseEnd, true)
+                    val newAntiClockwiseHeading = getHeading(antiClockwiseEnd, false)
+
+                    if (newClockwiseHeading != clockwiseHeading && newAntiClockwiseHeading != antiClockwiseHeading) {
                         break
                     }
+
+                    val newClockwiseFacing = getFacingFromIndex(newClockwiseHeading)
+                    val newAntiClockwiseFacing = getFacingFromIndex(newAntiClockwiseHeading)
 
                     clockwise = clockwiseEnd
                     clockwiseHeading = newClockwiseHeading
                     clockwiseFacing = newClockwiseFacing
-                    counterClockwise = counterClockwiseEnd
-                    counterClockwiseHeading = newCounterClockwiseHeading
-                    counterClockwiseFacing = newCounterClockwiseFacing
+                    antiClockwise = antiClockwiseEnd
+                    antiClockwiseHeading = newAntiClockwiseHeading
+                    antiClockwiseFacing = newAntiClockwiseFacing
                 }
             }
         }
 
-        private fun getClockwiseHeading(pos: Vector2): Int {
-            return getClockwiseHeading(pos.x, pos.y)
-        }
+        // Returns the heading according to corner shape (inner or outer) and direction (clockwise or anti-clockwise).
+        // -1 means the position is not on a corner.
+        private fun getHeading(pos: Vector2, clockwise: Boolean): Int {
+            var shapeIndex = getInnerCornerShape(pos)
+            if (shapeIndex >= 0) return if (clockwise) shapeIndex else (shapeIndex - 1).mod(4)
 
-        private fun getClockwiseHeading(x: Int, y: Int): Int {
-            val kind = isCellVoid(x, y) or (isCellVoid(x + 1, y) shl 1) or (isCellVoid(x, y + 1) shl 2) or (isCellVoid(x + 1, y + 1) shl 3)
-            val heading = listOf(-1, 3, 0, 0, 2, 3, -1, 0, 1, -1, 1, 1, 2, 3, 2, -1)[kind]
-            check(heading >= 0)
-            return heading
-        }
+            shapeIndex = getOuterCornerShape(pos)
+            if (shapeIndex >= 0) return if (clockwise) shapeIndex else (shapeIndex + 1).mod(4)
 
-        private fun getCounterClockwiseHeading(pos: Vector2): Int {
-            return getCounterClockwiseHeading(pos.x, pos.y)
-        }
-
-        private fun getCounterClockwiseHeading(x: Int, y: Int): Int {
-            val kind = isCellVoid(x, y) or (isCellVoid(x + 1, y) shl 1) or (isCellVoid(x, y + 1) shl 2) or (isCellVoid(x + 1, y + 1) shl 3)
-            val heading = listOf(-1, 2, 3, 2, 1, 1, -1, 1, 0, -1, 3, 2, 0, 0, 3, -1)[kind]
-            check(heading >= 0)
-            return heading
+            return -1
         }
 
         private fun getFacingFromIndex(index: Int): Vector2 = facings.values.toList()[index.mod(4)]
@@ -198,12 +234,12 @@ fun main() {
         }
 
         private fun tryWrapAsCube(direction: Vector2): Boolean {
-            val destination = edgeMap.getOrDefault(Pair(position, facing), null)
+            val destination = edgeMap.getOrDefault(Pair(position + direction, facing), null)
             check(destination != null)
 
             if (cell(destination.first) == '#') return false
 
-            position = destination.first + direction
+            position = destination.first + getFacingFromIndex(facing) + getFacingFromIndex(destination.second)
             facing = destination.second
 
             return true
@@ -212,7 +248,44 @@ fun main() {
         private fun row(row: Int = position.y): CharArray? = grid.getOrNull(row)
         private fun cell(position: Vector2): Char = cell(position.x, position.y)
         private fun cell(x: Int = position.x, y: Int = position.y): Char = row(y)?.getOrNull(x) ?: ' '
-        private fun isCellVoid(x: Int, y: Int): Int = if (cell(x, y) == ' ') 1 else 0
+        private fun isCellVoid(pos: Vector2): Boolean = isCellVoid(pos.x, pos.y)
+        private fun isCellVoid(x: Int, y: Int): Boolean = cell(x, y) == ' '
+
+        // Returns a 3x3 bitmap of a position.
+        private fun positionToBitmap(pos: Vector2): List<List<Int>> {
+            val map = mutableListOf<List<Int>>()
+            for (y in pos.y - 1 .. pos.y + 1) {
+                val row = mutableListOf<Int>()
+                for (x in pos.x - 1 .. pos.x + 1) {
+                    row.add(if (cell(x, y) == ' ') 0 else 1)
+                }
+                map.add(row)
+            }
+
+            return map
+        }
+
+        // Returns the shape index of the inner corner at position, or -1 if there isn't one.
+        private fun getInnerCornerShape(pos: Vector2): Int {
+            val map = positionToBitmap(pos)
+            for ((index, shape) in innerCornerShapes.withIndex()) {
+                val match = shape == map
+                if (match) return index
+            }
+
+            return -1
+        }
+
+        // Returns the shape index of the outer corner at position, or -1 if there isn't one.
+        private fun getOuterCornerShape(pos: Vector2): Int {
+            val map = positionToBitmap(pos)
+            for ((index, shape) in outerCornerShapes.withIndex()) {
+                val match = shape == map
+                if (match) return index
+            }
+
+            return -1
+        }
     }
 
     fun processInput(input: List<String>): Map {
@@ -222,8 +295,7 @@ fun main() {
         for (char in input.last()) {
             if (char == 'L' || char == 'R') {
                 actions.add(Action(false, action.toInt()))
-                if (char == 'L') actions.add(Action(true, -1))
-                else actions.add(Action(true, 1))
+                actions.add(Action(true, if (char == 'L') -1 else 1))
                 action = ""
                 continue
             }
