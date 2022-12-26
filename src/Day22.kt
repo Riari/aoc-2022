@@ -32,6 +32,7 @@ fun main() {
         )
 
         val path = mutableMapOf<Vector2, Char>()
+        val portals = mutableMapOf<Vector2, Char>()
         val facingSymbols = listOf('>', 'v', '<', '^')
 
         // Cube mapping state
@@ -39,48 +40,16 @@ fun main() {
         var area = 0
         var sideLength = 0
         val innerCornerShapes = listOf(
-            listOf(
-                listOf(1, 1, 0),
-                listOf(1, 1, 1),
-                listOf(1, 1, 1),
-            ),
-            listOf(
-                listOf(1, 1, 1),
-                listOf(1, 1, 1),
-                listOf(1, 1, 0),
-            ),
-            listOf(
-                listOf(1, 1, 1),
-                listOf(1, 1, 1),
-                listOf(0, 1, 1),
-            ),
-            listOf(
-                listOf(0, 1, 1),
-                listOf(1, 1, 1),
-                listOf(1, 1, 1),
-            ),
+            listOf(1, 1, 0, 1, 1, 1, 1, 1, 1),
+            listOf(1, 1, 1, 1, 1, 1, 1, 1, 0),
+            listOf(1, 1, 1, 1, 1, 1, 0, 1, 1),
+            listOf(0, 1, 1, 1, 1, 1, 1, 1, 1),
         )
         val outerCornerShapes = listOf(
-            listOf(
-                listOf(0, 0, 0),
-                listOf(0, 1, 1),
-                listOf(0, 1, 1),
-            ),
-            listOf(
-                listOf(0, 0, 0),
-                listOf(1, 1, 0),
-                listOf(1, 1, 0),
-            ),
-            listOf(
-                listOf(1, 1, 0),
-                listOf(1, 1, 0),
-                listOf(0, 0, 0),
-            ),
-            listOf(
-                listOf(0, 1, 1),
-                listOf(0, 1, 1),
-                listOf(0, 0, 0),
-            ),
+            listOf(0, 0, 0, 0, 1, 1, 0, 1, 1),
+            listOf(0, 0, 0, 1, 1, 0, 1, 1, 0),
+            listOf(1, 1, 0, 1, 1, 0, 0, 0, 0),
+            listOf(0, 1, 1, 0, 1, 1, 0, 0, 0),
         )
         var innerCorners = mutableListOf<Vector2>()
         val edgeMap = mutableMapOf<Pair<Vector2, Int>, Pair<Vector2, Int>>()
@@ -109,7 +78,8 @@ fun main() {
                 for (x in 0 until width) {
                     if (isCellVoid(x, y)) continue
                     val vector = Vector2(x, y)
-                    if (getInnerCornerShape(vector) >= 0) innerCorners.add(vector)
+                    val map = positionToBitmap(vector)
+                    if (getInnerCornerShape(map) >= 0) innerCorners.add(vector)
                 }
             }
 
@@ -118,19 +88,25 @@ fun main() {
         }
 
         private fun mapCubeEdges() {
+            var charLower = 'a'
+            var charUpper = 'A'
             for (corner in innerCorners) {
                 var clockwise = corner
-                var clockwiseHeading = getHeading(clockwise, true)
+                var clockwiseHeading = getHeading(clockwise, true)!!
                 var clockwiseFacing = getFacingFromIndex(clockwiseHeading)
                 var antiClockwise = corner
-                var antiClockwiseHeading = getHeading(antiClockwise, false)
+                var antiClockwiseHeading = getHeading(antiClockwise, false)!!
                 var antiClockwiseFacing = getFacingFromIndex(antiClockwiseHeading)
 
                 while (true) {
-                    val clockwiseEnd = clockwise + clockwiseFacing * sideLength
-                    val antiClockwiseEnd = antiClockwise + antiClockwiseFacing * sideLength
+                    val clockwiseAdvance = if (cell(clockwise + clockwiseFacing * sideLength) == ' ')
+                        sideLength - 1 else sideLength
+                    val antiClockwiseAdvance = if (cell(antiClockwise + antiClockwiseFacing * sideLength) == ' ')
+                        sideLength - 1 else sideLength
+                    val clockwiseEnd = clockwise + clockwiseFacing * clockwiseAdvance
+                    val antiClockwiseEnd = antiClockwise + antiClockwiseFacing * antiClockwiseAdvance
 
-                    for (n in 1 .. sideLength) {
+                    for (n in 1 .. minOf(clockwiseAdvance, antiClockwiseAdvance)) {
                         val a = clockwise + clockwiseFacing * n
                         val b = antiClockwise + antiClockwiseFacing * n
                         val fromA = Pair(a, (clockwiseHeading - 1).mod(4))
@@ -139,10 +115,16 @@ fun main() {
                         val toA = Pair(a, (clockwiseHeading + 1).mod(4))
                         edgeMap[fromA] = toB
                         edgeMap[fromB] = toA
+
+                        portals[a] = if (n <= sideLength / 2) charLower else charUpper
+                        portals[b] = if (n <= sideLength / 2) charLower else charUpper
                     }
 
-                    val newClockwiseHeading = getHeading(clockwiseEnd, true)
-                    val newAntiClockwiseHeading = getHeading(antiClockwiseEnd, false)
+                    charLower++
+                    charUpper++
+
+                    val newClockwiseHeading = getHeading(clockwiseEnd, true) ?: clockwiseHeading
+                    val newAntiClockwiseHeading = getHeading(antiClockwiseEnd, false) ?: antiClockwiseHeading
 
                     if (newClockwiseHeading != clockwiseHeading && newAntiClockwiseHeading != antiClockwiseHeading) {
                         break
@@ -151,10 +133,20 @@ fun main() {
                     val newClockwiseFacing = getFacingFromIndex(newClockwiseHeading)
                     val newAntiClockwiseFacing = getFacingFromIndex(newAntiClockwiseHeading)
 
-                    clockwise = clockwiseEnd
+                    clockwise = if (newClockwiseHeading != clockwiseHeading) {
+                        clockwiseEnd - newClockwiseFacing
+                    } else {
+                        clockwiseEnd
+                    }
+
+                    antiClockwise = if (newAntiClockwiseHeading != antiClockwiseHeading) {
+                        antiClockwiseEnd - newAntiClockwiseFacing
+                    } else {
+                        antiClockwiseEnd
+                    }
+
                     clockwiseHeading = newClockwiseHeading
                     clockwiseFacing = newClockwiseFacing
-                    antiClockwise = antiClockwiseEnd
                     antiClockwiseHeading = newAntiClockwiseHeading
                     antiClockwiseFacing = newAntiClockwiseFacing
                 }
@@ -162,15 +154,17 @@ fun main() {
         }
 
         // Returns the heading according to corner shape (inner or outer) and direction (clockwise or anti-clockwise).
-        // -1 means the position is not on a corner.
-        private fun getHeading(pos: Vector2, clockwise: Boolean): Int {
-            var shapeIndex = getInnerCornerShape(pos)
+        // Null means the position is not on a corner.
+        private fun getHeading(pos: Vector2, clockwise: Boolean): Int? {
+            val map = positionToBitmap(pos)
+
+            var shapeIndex = getInnerCornerShape(map)
             if (shapeIndex >= 0) return if (clockwise) shapeIndex else (shapeIndex - 1).mod(4)
 
-            shapeIndex = getOuterCornerShape(pos)
+            shapeIndex = getOuterCornerShape(map)
             if (shapeIndex >= 0) return if (clockwise) shapeIndex else (shapeIndex + 1).mod(4)
 
-            return -1
+            return null
         }
 
         private fun getFacingFromIndex(index: Int): Vector2 = facings.values.toList()[index.mod(4)]
@@ -178,7 +172,8 @@ fun main() {
         fun print() {
             for (y in 0 until height) {
                 for (x in 0 until width) {
-                    print(path.getOrDefault(Vector2(x, y), grid[y].getOrElse(x) { ' ' }))
+                    val vector = Vector2(x, y)
+                    print(portals.getOrDefault(vector, path.getOrDefault(vector, grid[y].getOrElse(x) { ' ' })))
                 }
                 print("\n")
             }
@@ -194,8 +189,6 @@ fun main() {
                 }
 
                 move(action.value)
-
-                this.print()
             }
         }
 
@@ -210,7 +203,7 @@ fun main() {
                     ' ' -> {
                         // Out of bounds.
                         if (!asCube && !tryWrap(direction)) break
-                        if (asCube && !tryWrapAsCube(direction)) break
+                        if (asCube && !tryWrapAsCube()) break
                     }
                 }
             }
@@ -233,13 +226,13 @@ fun main() {
             return true
         }
 
-        private fun tryWrapAsCube(direction: Vector2): Boolean {
-            val destination = edgeMap.getOrDefault(Pair(position + direction, facing), null)
+        private fun tryWrapAsCube(): Boolean {
+            val destination = edgeMap.getOrDefault(Pair(position, facing), null)
             check(destination != null)
 
             if (cell(destination.first) == '#') return false
 
-            position = destination.first + getFacingFromIndex(facing) + getFacingFromIndex(destination.second)
+            position = destination.first
             facing = destination.second
 
             return true
@@ -248,43 +241,27 @@ fun main() {
         private fun row(row: Int = position.y): CharArray? = grid.getOrNull(row)
         private fun cell(position: Vector2): Char = cell(position.x, position.y)
         private fun cell(x: Int = position.x, y: Int = position.y): Char = row(y)?.getOrNull(x) ?: ' '
-        private fun isCellVoid(pos: Vector2): Boolean = isCellVoid(pos.x, pos.y)
         private fun isCellVoid(x: Int, y: Int): Boolean = cell(x, y) == ' '
 
-        // Returns a 3x3 bitmap of a position.
-        private fun positionToBitmap(pos: Vector2): List<List<Int>> {
-            val map = mutableListOf<List<Int>>()
+        // Returns a list representing the edge or corner shape at the given position.
+        // 1 = filled, 0 = void.
+        private fun positionToBitmap(pos: Vector2): List<Int> {
+            val map = mutableListOf<Int>()
             for (y in pos.y - 1 .. pos.y + 1) {
-                val row = mutableListOf<Int>()
                 for (x in pos.x - 1 .. pos.x + 1) {
-                    row.add(if (cell(x, y) == ' ') 0 else 1)
+                    map.add(if (cell(x, y) == ' ') 0 else 1)
                 }
-                map.add(row)
             }
 
             return map
         }
 
-        // Returns the shape index of the inner corner at position, or -1 if there isn't one.
-        private fun getInnerCornerShape(pos: Vector2): Int {
-            val map = positionToBitmap(pos)
-            for ((index, shape) in innerCornerShapes.withIndex()) {
-                val match = shape == map
-                if (match) return index
-            }
+        private fun getInnerCornerShape(shape: List<Int>): Int = getIndexOfShape(shape, innerCornerShapes)
+        private fun getOuterCornerShape(shape: List<Int>): Int = getIndexOfShape(shape, outerCornerShapes)
 
-            return -1
-        }
-
-        // Returns the shape index of the outer corner at position, or -1 if there isn't one.
-        private fun getOuterCornerShape(pos: Vector2): Int {
-            val map = positionToBitmap(pos)
-            for ((index, shape) in outerCornerShapes.withIndex()) {
-                val match = shape == map
-                if (match) return index
-            }
-
-            return -1
+        // Returns the index of the shape matching the given one, or -1 if there is no match.
+        private fun getIndexOfShape(shape: List<Int>, shapes: List<List<Int>>): Int {
+            return shapes.withIndex().firstOrNull { it.value == shape }?.index ?: -1
         }
     }
 
@@ -324,10 +301,10 @@ fun main() {
     }
 
     val testInput = processInput(readInput("Day22_test"))
-//    check(part1(testInput) == 6032)
+    check(part1(testInput) == 6032)
     check(part2(testInput) == 5031)
 
     val input = processInput(readInput("Day22"))
-//    println(part1(input))
-//    println(part2(input))
+    println(part1(input))
+    println(part2(input))
 }
