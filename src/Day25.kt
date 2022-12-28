@@ -23,14 +23,7 @@ fun main() {
         return snafu
     }
 
-    fun part1(input: List<String>): String {
-        var decimal = 0L
-        for (line in input) {
-            decimal += snafuToDec(line)
-        }
-
-        return decToSnafu(decimal)
-    }
+    fun part1(input: List<String>): String = decToSnafu(input.fold(0) { a, b -> a + snafuToDec(b) })
 
     val testInput = readInput("Day25_test")
     check(part1(testInput) == "2=-1=0")
